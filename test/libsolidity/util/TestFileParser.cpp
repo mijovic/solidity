@@ -87,7 +87,10 @@ vector<solidity::frontend::test::FunctionCall> TestFileParser::parseFunctionCall
 					{
 						tie(call.signature, call.useCallWithoutSignature) = parseFunctionSignature();
 						if (accept(Token::Comma, true))
+						{
 							call.value = parseFunctionCallValue();
+							call.valueCoin =
+						}
 						if (accept(Token::Colon, true))
 							call.arguments = parseFunctionCallArguments();
 

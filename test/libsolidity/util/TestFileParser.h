@@ -136,6 +136,10 @@ private:
 	/// if given value cannot be converted to `u256`.
 	u256 parseFunctionCallValue();
 
+	/// Parses optional ether or wei token in case value is provided
+	/// 
+	FunctionCallValueCoin  parseFunctionCallValueCoin();
+
 	/// Parses a comma-separated list of arguments passed with a function call.
 	/// Does not check for a potential mismatch between the signature and the number
 	/// or types of arguments.

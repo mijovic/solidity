@@ -50,6 +50,7 @@ namespace solidity::frontend::test
 	T(Identifier, "identifier", 0) \
 	/* type keywords */            \
 	K(Ether, "ether", 0)           \
+	K(Wei, "wei", 0)               \
 	K(Hex, "hex", 0)               \
 	K(Boolean, "boolean", 0)       \
 	/* special keywords */         \
@@ -229,6 +230,12 @@ struct FunctionCallArgs
 	}
 };
 
+enum class FunctionCallValueCoin
+{
+	Wei,
+	Ether
+};
+
 /**
  * Represents a function call read from an input stream. It contains the signature, the
  * arguments, an optional ether value and an expected execution result.
@@ -239,6 +246,8 @@ struct FunctionCall
 	std::string signature;
 	/// Optional `ether` value that can be send with the call.
 	u256 value;
+	/// coin associated with value field, can be wei or ether
+	FunctionCallValueCoin valueCoin;
 	/// Object that holds all function parameters in their `bytes`
 	/// representations given by the contract ABI.
 	FunctionCallArgs arguments;
