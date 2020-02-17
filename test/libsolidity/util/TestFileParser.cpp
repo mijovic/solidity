@@ -207,8 +207,14 @@ u256 TestFileParser::parseFunctionCallValue()
 	try
 	{
 		u256 value{parseDecimalNumber()};
-		expect(Token::Ether);
-		return value;
+		if (accept(Token::Wei, true))
+		{
+			return value;
+		}
+		else if (accept(Token::Ether, true))
+		{
+			return value * 10^18;
+		}
 	}
 	catch (std::exception const&)
 	{
