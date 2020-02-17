@@ -27,6 +27,8 @@
 
 #include <libsolidity/ast/TypeProvider.h>
 
+#include <libsolutil/Algorithms.h>
+
 #include <queue>
 
 using namespace std;
@@ -607,19 +609,11 @@ void CHC::setCurrentBlock(
 set<Expression const*, CHC::IdCompare> CHC::transactionAssertions(ASTNode const* _txRoot)
 {
 	set<Expression const*, IdCompare> assertions;
-	set<ASTNode const*> visited;
-	queue<ASTNode const*> toVisit;
-	toVisit.push(_txRoot);
-	while (!toVisit.empty())
-	{
-		auto const* function = toVisit.front();
-		toVisit.pop();
-		visited.insert(function);
+	solidity::util::BreadthFirstSearch<ASTNode const*>{{_txRoot}}.run([&](auto const* function, auto&& _addChild) {
 		assertions.insert(m_functionAssertions[function].begin(), m_functionAssertions[function].end());
 		for (auto const* called: m_callGraph[function])
-			if (!visited.count(called))
-				toVisit.push(called);
-	}
+		_addChild(called);
+	});
 	return assertions;
 }
 
