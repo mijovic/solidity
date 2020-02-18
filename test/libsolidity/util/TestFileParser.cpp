@@ -88,8 +88,9 @@ vector<solidity::frontend::test::FunctionCall> TestFileParser::parseFunctionCall
 						tie(call.signature, call.useCallWithoutSignature) = parseFunctionSignature();
 						if (accept(Token::Comma, true))
 						{
-							call.value = parseFunctionCallValue();
-							call.valueCoin =
+							auto functionValue = parseFunctionCallValue();
+							call.value = functionValue.value * (functionValue.coin == FunctionCallValueCoin::Wei ? 1 : u256(1e18));
+							call.valueCoin = functionValue.coin;
 						}
 						if (accept(Token::Colon, true))
 							call.arguments = parseFunctionCallArguments();
@@ -202,19 +203,16 @@ pair<string, bool> TestFileParser::parseFunctionSignature()
 	return {signature, !hasName};
 }
 
-u256 TestFileParser::parseFunctionCallValue()
+TestFileParser::FunctionValue TestFileParser::parseFunctionCallValue()
 {
 	try
 	{
-		u256 value{parseDecimalNumber()};
-		if (accept(Token::Wei, true))
-		{
-			return value;
-		}
-		else if (accept(Token::Ether, true))
-		{
-			return value * 10^18;
-		}
+		u256 value{ parseDecimalNumber() };
+		auto token = m_scanner.currentToken() == Token::Wei ? Token::Wei : Token::Ether;
+		expect(token);
+
+		auto coin = token == Token::Wei ? FunctionCallValueCoin::Wei : FunctionCallValueCoin::Ether;
+		return { value, coin };
 	}
 	catch (std::exception const&)
 	{
@@ -476,6 +474,7 @@ void TestFileParser::Scanner::scanNextToken()
 		if (_literal == "true") return TokenDesc{Token::Boolean, _literal};
 		if (_literal == "false") return TokenDesc{Token::Boolean, _literal};
 		if (_literal == "ether") return TokenDesc{Token::Ether, _literal};
+		if (_literal == "wei") return TokenDesc{Token::Wei, _literal};
 		if (_literal == "left") return TokenDesc{Token::Left, _literal};
 		if (_literal == "library") return TokenDesc{Token::Library, _literal};
 		if (_literal == "right") return TokenDesc{Token::Right, _literal};

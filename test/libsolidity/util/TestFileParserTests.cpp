@@ -295,7 +295,7 @@ BOOST_AUTO_TEST_CASE(call_comments)
 BOOST_AUTO_TEST_CASE(call_arguments)
 {
 	char const* source = R"(
-		// f(uint256), 314 ether: 5 # optional ether value #
+		// f(uint256), 314 wei: 5 # optional wei value #
 		// -> 4
 	)";
 	auto const calls = parse(source);
@@ -308,6 +308,26 @@ BOOST_AUTO_TEST_CASE(call_arguments)
 		fmt::encodeArgs(5),
 		fmt::encodeArgs(4),
 		314,
+		" optional wei value "
+	);
+}
+
+BOOST_AUTO_TEST_CASE(call_arguments_ether)
+{
+	char const* source = R"(
+		// f(uint256), 1 ether: 5 # optional ether value #
+		// -> 4
+	)";
+	auto const calls = parse(source);
+	BOOST_REQUIRE_EQUAL(calls.size(), 1);
+	testFunctionCall(
+		calls.at(0),
+		Mode::MultiLine,
+		"f(uint256)",
+		false,
+		fmt::encodeArgs(5),
+		fmt::encodeArgs(4),
+		u256(1 * 1e18),
 		" optional ether value "
 	);
 }
@@ -594,7 +614,7 @@ BOOST_AUTO_TEST_CASE(call_multiple_arguments)
 BOOST_AUTO_TEST_CASE(call_multiple_arguments_mixed_format)
 {
 	char const* source = R"(
-		// test(uint256, uint256), 314 ether:
+		// test(uint256, uint256), 314 wei:
 		// 1, -2
 		// -> -1, 2
 	)";

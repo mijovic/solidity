@@ -245,9 +245,10 @@ struct FunctionCall
 	/// Signature of the function call, e.g. `f(uint256, uint256)`.
 	std::string signature;
 	/// Optional `ether` value that can be send with the call.
+	/// Value is expressed in wei, smallest unit of ether
 	u256 value;
 	/// coin associated with value field, can be wei or ether
-	FunctionCallValueCoin valueCoin;
+	FunctionCallValueCoin valueCoin = FunctionCallValueCoin::Wei;
 	/// Object that holds all function parameters in their `bytes`
 	/// representations given by the contract ABI.
 	FunctionCallArgs arguments;

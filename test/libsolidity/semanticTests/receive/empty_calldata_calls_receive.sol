@@ -8,5 +8,6 @@ contract A {
 // x() -> 1
 // (), 1 ether
 // x() -> 2
+// x(), 1 wei -> 3
 // (): hex"00" -> FAILURE
 // (), 1 ether: hex"00" -> FAILURE
