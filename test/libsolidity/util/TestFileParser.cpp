@@ -208,10 +208,14 @@ TestFileParser::FunctionValue TestFileParser::parseFunctionCallValue()
 	try
 	{
 		u256 value{ parseDecimalNumber() };
-		auto token = m_scanner.currentToken() == Token::Wei ? Token::Wei : Token::Ether;
-		expect(token);
-
+		auto token = m_scanner.currentToken();
 		auto coin = token == Token::Wei ? FunctionCallValueCoin::Wei : FunctionCallValueCoin::Ether;
+
+		if (token != Token::Ether && token != Token::Wei)
+			throw Error(Error::Type::ParserError, "Invalid value coin provided. Coins can be wei or ether.");
+
+		m_scanner.scanNextToken();
+
 		return { value, coin };
 	}
 	catch (std::exception const&)
