@@ -132,6 +132,8 @@ private:
 	/// empty. If so, the signature is not allowed to define any parameters.
 	std::pair<std::string, bool> parseFunctionSignature();
 
+	/// FunctionValue structure
+	/// Holds value along with coin it is expressed in
 	struct FunctionValue
 	{
 		u256 value;
