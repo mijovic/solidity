@@ -40,6 +40,14 @@ bool Dialect::validTypeForLiteral(LiteralKind _kind, YulString, YulString _type)
 		return true;
 }
 
+bool Dialect::validTypeForLiteral(LiteralKind _kind, YulString, YulString _type) const
+{
+	if (_kind == LiteralKind::Boolean)
+		return _type == boolType;
+	else
+		return true;
+}
+
 Dialect const& Dialect::yulDeprecated()
 {
 	static unique_ptr<Dialect> dialect;
