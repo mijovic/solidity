@@ -234,6 +234,16 @@ BuiltinFunctionForEVM const& NoOutputEVMDialect::builtin(BuiltinHandle const& _h
 			builtin = std::make_unique<BuiltinFunctionForEVM>(createVerbatimFunctionFromHandle(_handle));
 			modifyBuiltinToNoOutput(*builtin);
 		}
+	if (isCustomOpcodeHandle(_handle))
+		// for custom_opcode the modification is performed lazily as they are stored in a lookup table fashion
+		if (
+			auto& builtin = m_customOpcodeFunctions[_handle.id - verbatimIDOffset];
+			!builtin
+		)
+		{
+			builtin = std::make_unique<BuiltinFunctionForEVM>(createCustomOpcodeFunctionFromHandle(_handle));
+			modifyBuiltinToNoOutput(*builtin);
+		}
 	return EVMDialect::builtin(_handle);
 }
 

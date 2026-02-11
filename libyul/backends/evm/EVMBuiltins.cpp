@@ -360,11 +360,16 @@ EVMBuiltins::EVMBuiltins()
 	m_scopesAndFunctions.emplace_back(objectAccess | requiresEOF, returncontractBuiltin());
 
 	static size_t constexpr verbatimPrefixLength = std::char_traits<char>::length("verbatim_");
+	static size_t constexpr customOpcodePrefixLength = std::char_traits<char>::length("custom_opcode_");
 	for (auto const& [scope, builtin]: m_scopesAndFunctions)
 	{
 		yulAssert(
 			builtin.name.substr(0, verbatimPrefixLength) != "verbatim_",
 			"Builtin functions besides verbatim should not start with the verbatim_ prefix."
+		);
+		yulAssert(
+			builtin.name.substr(0, customOpcodePrefixLength) != "custom_opcode_",
+			"Builtin functions besides custom_opcode should not start with the custom_opcode_ prefix."
 		);
 		yulAssert(!(scope.requiresEOF() && scope.requiresNonEOF()), "Mutually exclusive scopes");
 	}
@@ -395,6 +400,43 @@ BuiltinFunctionForEVM EVMBuiltins::createVerbatimFunction(size_t const _argument
 		}
 	);
 	builtinFunction.isMSize = true;
+	return builtinFunction;
+}
+
+BuiltinFunctionForEVM EVMBuiltins::createCustomOpcodeFunction(size_t const _arguments, size_t const _returnVariables)
+{
+	BuiltinFunctionForEVM builtinFunction = createFunction(
+		"custom_opcode_" + std::to_string(_arguments) + "i_" + std::to_string(_returnVariables) + "o",
+		1 + _arguments,
+		_returnVariables,
+		SideEffects::worst(),
+		ControlFlowSideEffects::worst(),
+		std::vector<std::optional<LiteralKind>>{LiteralKind::String} + std::vector<std::optional<LiteralKind>>(_arguments),
+		[=](
+			FunctionCall const& _call,
+			AbstractAssembly& _assembly,
+			BuiltinContext&
+		) {
+			yulAssert(_call.arguments.size() == (1 + _arguments), "");
+			Expression const& opcodeArg = _call.arguments.front();
+
+			bytes opcodeBytes = util::asBytes(formatLiteral(std::get<Literal>(opcodeArg)));
+			yulAssert(opcodeBytes.size() == 1, "custom_opcode expects exactly 1 byte.");
+
+			// Prepend 0xEE extension opcode prefix (MIP-7)
+			bytes fullOpcode{0xEE};
+			fullOpcode += opcodeBytes;
+
+			_assembly.appendVerbatim(
+				std::move(fullOpcode),
+				_arguments,
+				_returnVariables
+			);
+		}
+	);
+	// Unlike verbatim, isMSize is false: extension opcodes (0xEE XX) are not the MSIZE instruction.
+	// SideEffects::worst() already ensures the optimizer treats this as an opaque black box.
+	builtinFunction.isMSize = false;
 	return builtinFunction;
 }
 

@@ -68,8 +68,12 @@ public:
 	{
 		if (yul::EVMDialect const* dialect = dynamic_cast<decltype(dialect)>(&m_dialect))
 			if (yul::BuiltinFunctionForEVM const* builtin = resolveBuiltinFunctionForEVM(_funCall.functionName, *dialect))
+			{
 				if (builtin->instruction)
 					checkInstruction(nativeLocationOf(_funCall), *builtin->instruction);
+				else
+					checkSideEffects(nativeLocationOf(_funCall), builtin->sideEffects);
+			}
 
 		for (auto const& arg: _funCall.arguments)
 			std::visit(*this, arg);
@@ -117,6 +121,13 @@ private:
 		if (evmasm::SemanticInformation::invalidInViewFunctions(_instruction))
 			m_reportMutability(StateMutability::NonPayable, _location);
 		else if (evmasm::SemanticInformation::invalidInPureFunctions(_instruction))
+			m_reportMutability(StateMutability::View, _location);
+	}
+	void checkSideEffects(SourceLocation _location, yul::SideEffects const& _sideEffects)
+	{
+		if (_sideEffects.storage == yul::SideEffects::Write || _sideEffects.otherState == yul::SideEffects::Write)
+			m_reportMutability(StateMutability::NonPayable, _location);
+		else if (_sideEffects.storage == yul::SideEffects::Read || _sideEffects.otherState == yul::SideEffects::Read)
 			m_reportMutability(StateMutability::View, _location);
 	}
 
