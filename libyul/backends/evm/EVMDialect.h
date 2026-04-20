@@ -98,6 +98,9 @@ public:
 	static size_t constexpr verbatimMaxInputSlots = 100;
 	static size_t constexpr verbatimMaxOutputSlots = 100;
 
+	static size_t constexpr customOpcodeMaxInputSlots = 100;
+	static size_t constexpr customOpcodeMaxOutputSlots = 100;
+
 	std::set<std::string_view> builtinFunctionNames() const;
 
 protected:
@@ -107,6 +110,17 @@ protected:
 
 	static size_t constexpr verbatimIDOffset = verbatimMaxInputSlots * verbatimMaxOutputSlots;
 
+	static size_t constexpr customOpcodeIDOffset = customOpcodeMaxInputSlots * customOpcodeMaxOutputSlots;
+	/// Combined offset for regular builtins: verbatim range + custom_opcode range.
+	static size_t constexpr dynamicBuiltinIDOffset = verbatimIDOffset + customOpcodeIDOffset;
+
+	static bool constexpr isCustomOpcodeHandle(BuiltinHandle const& _handle)
+	{
+		return _handle.id >= verbatimIDOffset && _handle.id < dynamicBuiltinIDOffset;
+	}
+	static BuiltinFunctionForEVM createCustomOpcodeFunctionFromHandle(BuiltinHandle const& _handle);
+	BuiltinHandle customOpcodeFunction(size_t _arguments, size_t _returnVariables) const;
+
 	static EVMBuiltins const& allBuiltins();
 
 	bool const m_objectAccess;
@@ -115,6 +129,7 @@ protected:
 	std::unordered_map<std::string_view, BuiltinHandle> m_builtinFunctionsByName;
 	std::vector<BuiltinFunctionForEVM const*> m_functions;
 	std::array<std::unique_ptr<BuiltinFunctionForEVM>, verbatimIDOffset> mutable m_verbatimFunctions{};
+	std::array<std::unique_ptr<BuiltinFunctionForEVM>, customOpcodeIDOffset> mutable m_customOpcodeFunctions{};
 	std::set<std::string, std::less<>> m_reserved;
 
 	std::optional<BuiltinHandle> m_discardFunction;

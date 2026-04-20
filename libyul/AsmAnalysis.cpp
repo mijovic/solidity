@@ -503,6 +503,17 @@ size_t AsmAnalyzer::operator()(FunctionCall const& _funCall)
 							"The \"verbatim_*\" builtins cannot be used with empty bytecode."
 						);
 				}
+				else if (functionName.substr(0, "custom_opcode_"s.size()) == "custom_opcode_")
+				{
+					auto const& literalValue = std::get<Literal>(arg).value;
+					yulAssert(literalValue.unlimited());  // custom_opcode literals are always unlimited
+					if (literalValue.builtinStringLiteralValue().size() != 1)
+						m_errorReporter.typeError(
+							8879_error,
+							nativeLocationOf(arg),
+							"The \"custom_opcode_*\" builtins require exactly one byte as the first argument."
+						);
+				}
 				else if (functionName == "eofcreate" || functionName == "returncontract")
 				{
 					auto const& argumentAsLiteral = std::get<Literal>(arg);

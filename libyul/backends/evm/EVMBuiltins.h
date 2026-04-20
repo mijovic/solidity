@@ -105,6 +105,9 @@ public:
 	/// Creates a verbatim builtin function. These are not part of the usual builtin functions collection and
 	/// must be cached in the dialect creating them.
 	static BuiltinFunctionForEVM createVerbatimFunction(size_t _arguments, size_t _returnVariables);
+	/// Creates a custom opcode builtin function (MIP-7 extension opcodes).
+	/// Emits 0xEE prefix + user-specified 1-byte operand. Available in inline assembly.
+	static BuiltinFunctionForEVM createCustomOpcodeFunction(size_t _arguments, size_t _returnVariables);
 	static SideEffects sideEffectsOfInstruction(evmasm::Instruction _instruction);
 
 private:

@@ -236,6 +236,23 @@ std::regex const& verbatimPattern()
 	return pattern;
 }
 
+size_t constexpr toContinuousCustomOpcodeIndex(size_t _arguments, size_t _returnVariables)
+{
+	return _arguments + _returnVariables * EVMDialect::customOpcodeMaxInputSlots;
+}
+
+std::tuple<size_t, size_t> constexpr customOpcodeIndexToArgsAndRets(size_t _index)
+{
+	size_t const numRets = _index / EVMDialect::customOpcodeMaxInputSlots;
+	return std::make_tuple(_index - numRets * EVMDialect::customOpcodeMaxInputSlots, numRets);
+}
+
+std::regex const& customOpcodePattern()
+{
+	std::regex static const pattern{"([1-9]?[0-9])i_([1-9]?[0-9])o"};
+	return pattern;
+}
+
 }
 
 EVMDialect::EVMDialect(langutil::EVMVersion _evmVersion, std::optional<uint8_t> _eofVersion, bool _objectAccess):
@@ -247,8 +264,8 @@ EVMDialect::EVMDialect(langutil::EVMVersion _evmVersion, std::optional<uint8_t> 
 {
 	for (auto const& [index, maybeBuiltin]: m_functions | ranges::views::enumerate)
 		if (maybeBuiltin)
-			// ids are offset by the maximum number of verbatim functions
-			m_builtinFunctionsByName[maybeBuiltin->name] = BuiltinHandle{index + verbatimIDOffset};
+			// ids are offset by the maximum number of verbatim and custom_opcode functions
+			m_builtinFunctionsByName[maybeBuiltin->name] = BuiltinHandle{index + dynamicBuiltinIDOffset};
 
 	m_discardFunction = EVMDialect::findBuiltin("pop");
 	m_equalityFunction = EVMDialect::findBuiltin("eq");
@@ -269,6 +286,15 @@ EVMDialect::EVMDialect(langutil::EVMVersion _evmVersion, std::optional<uint8_t> 
 
 std::optional<BuiltinHandle> EVMDialect::findBuiltin(std::string_view _name) const
 {
+	// custom_opcode: available regardless of m_objectAccess (usable in inline assembly)
+	if (_name.substr(0, "custom_opcode_"s.size()) == "custom_opcode_")
+	{
+		std::smatch match;
+		std::string name(_name.substr("custom_opcode_"s.size()));
+		if (regex_match(name, match, customOpcodePattern()))
+			return customOpcodeFunction(stoul(match[1]), stoul(match[2]));
+	}
+
 	if (m_objectAccess && _name.substr(0, "verbatim_"s.size()) == "verbatim_")
 	{
 		std::smatch match;
@@ -296,14 +322,25 @@ BuiltinFunctionForEVM const& EVMDialect::builtin(BuiltinHandle const& _handle) c
 		return *verbatimFunctionPtr;
 	}
 
-	yulAssert(_handle.id - verbatimIDOffset < m_functions.size());
-	auto const* maybeBuiltin = m_functions[_handle.id - verbatimIDOffset];
+	if (isCustomOpcodeHandle(_handle))
+	{
+		size_t const customOpcodeIndex = _handle.id - verbatimIDOffset;
+		yulAssert(customOpcodeIndex < customOpcodeIDOffset);
+		auto const& customOpcodeFunctionPtr = m_customOpcodeFunctions[customOpcodeIndex];
+		yulAssert(customOpcodeFunctionPtr);
+		return *customOpcodeFunctionPtr;
+	}
+
+	yulAssert(_handle.id - dynamicBuiltinIDOffset < m_functions.size());
+	auto const* maybeBuiltin = m_functions[_handle.id - dynamicBuiltinIDOffset];
 	yulAssert(maybeBuiltin);
 	return *maybeBuiltin;
 }
 
 bool EVMDialect::reservedIdentifier(std::string_view _name) const
 {
+	if (_name.substr(0, "custom_opcode"s.size()) == "custom_opcode")
+		return true;
 	if (m_objectAccess)
 		if (_name.substr(0, "verbatim"s.size()) == "verbatim")
 			return true;
@@ -353,6 +390,31 @@ BuiltinHandle EVMDialect::verbatimFunction(size_t _arguments, size_t _returnVari
 		verbatimFunctionPtr = std::make_unique<BuiltinFunctionForEVM>(EVMBuiltins::createVerbatimFunction(_arguments, _returnVariables));
 
 	return {verbatimIndex};
+}
+
+BuiltinFunctionForEVM EVMDialect::createCustomOpcodeFunctionFromHandle(BuiltinHandle const& _handle)
+{
+	size_t const customOpcodeIndex = _handle.id - verbatimIDOffset;
+	return std::apply(EVMBuiltins::createCustomOpcodeFunction, customOpcodeIndexToArgsAndRets(customOpcodeIndex));
+}
+
+BuiltinHandle EVMDialect::customOpcodeFunction(size_t _arguments, size_t _returnVariables) const
+{
+	yulAssert(_arguments <= customOpcodeMaxInputSlots);
+	yulAssert(_returnVariables <= customOpcodeMaxOutputSlots);
+
+	auto const customOpcodeIndex = toContinuousCustomOpcodeIndex(_arguments, _returnVariables);
+	yulAssert(customOpcodeIndex < customOpcodeIDOffset);
+
+	if (
+		auto& customOpcodeFunctionPtr = m_customOpcodeFunctions[customOpcodeIndex];
+		!customOpcodeFunctionPtr
+	)
+		customOpcodeFunctionPtr = std::make_unique<BuiltinFunctionForEVM>(
+			EVMBuiltins::createCustomOpcodeFunction(_arguments, _returnVariables)
+		);
+
+	return {customOpcodeIndex + verbatimIDOffset};
 }
 
 EVMBuiltins const& EVMDialect::allBuiltins()
